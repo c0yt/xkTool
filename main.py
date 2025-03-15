@@ -958,7 +958,6 @@ if __name__ == '__main__':
 ------------------------------------------
 Author：null
 GitHub：https://github.com/c0yt
-Email：yun1723@foxmail.com
 ⚠️ 仅供个人学习使用，禁止用于个人盈利！''')
     print("=" * 42)
 
