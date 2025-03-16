@@ -20,7 +20,6 @@ class Session(requests.Session):
 
 # 选课主类
 class XkSystem:
-
     def __init__(self, user, pwd):
         self.session = Session()
         self.user = user
@@ -33,29 +32,28 @@ class XkSystem:
         }
         self.time = int(time.time() * 1000)
         self.xkkz_id = ''
-        self.courses = []
-        self.selectedCourses = []
+        self.courses = []   # 课程列表
+        self.selectedCourses = [] # 已选课程列表
 
+    # 保存cookies到文件
     def _save_cookies(self):
-        # 保存cookies到文件
         with open(self.cookie_file, 'wb') as f:
             pickle.dump(self.session.cookies, f)
         print('✅ Cookie已保存到本地')
 
+    # 从文件加载cookies
     def _load_cookies(self):
-        # 从文件加载cookies
         try:
             with open(self.cookie_file, 'rb') as f:
                 self.session.cookies.update(pickle.load(f))
             return True
         except:
             return False
-
+    # 检查登录状态
     def _check_login_status(self):
-        # 检查登录状态
         try:
             r = self.session.get(f"{self.host}/xsxk/zzxkyzb_cxZzxkYzbIndex.html", headers=self.headers)
-            return "请使用教务处教务系统的域名访问系统" not in r.text
+            return "用户名" not in r.text
         except:
             return False
 
@@ -64,12 +62,11 @@ class XkSystem:
         try:
             start_time = time.time()  # 记录开始时间
             requests.get(host, timeout=10)  # 发送测试请求
-            # print(r.request)
             delay = time.time() - start_time  # 计算延迟
             return delay * 1000  # 返回毫秒级的延迟
         except:
             return float('inf')  # 如果连接失败返回无穷大表示不可用
-
+    # 登录主函数
     def login(self,choice):
         # 从url.txt读取服务器列表
         try:
@@ -84,12 +81,11 @@ class XkSystem:
         except Exception as e:
             print(f"❌ 读取 url.txt 失败: {str(e)}")
             exit_program("程序即将退出...", -1)
-
+        # 手动选择服务器模式
         if choice == '2':
             print("\n可用的服务器列表:")
             for i, host in enumerate(hosts, 1):
                 print(f"{i}. {host}")
-
             while True:
                 try:
                     idx = int(input(f"\n请选择服务器 (1-{len(hosts)}): ")) - 1
@@ -100,7 +96,7 @@ class XkSystem:
                 except ValueError:
                     print("❌ 请输入有效的数字")
 
-            # 使用选定的服务器尝试登录
+            # 尝试使用选定服务器进行登录操作
             if self._load_cookies():
                 print("🔄 尝试使用保存的Cookie登录...")
                 try:
@@ -111,11 +107,12 @@ class XkSystem:
                     print("⚠️ Cookie登录失败，尝试账号密码登录...")
 
             try:
+                # 登录步骤
                 print(f"🔄 正在尝试登录服务器 {self.host}")
-                self._get_public()
-                self._get_csrftoken()
-                self._post_data()
-                self._save_cookies()
+                self._get_public()             # 获取RSA公钥
+                self._get_csrftoken()          # 获取CSRF令牌
+                self._post_data()              # 提交登录数据
+                self._save_cookies()           # 保存登录成功的Cookie
                 print('✅ 登录成功!')
                 return True
             except requests.exceptions.RequestException as e:
@@ -127,20 +124,22 @@ class XkSystem:
                 exit_program("程序即将退出...", -1)
 
         else:  # 自动选择服务器模式
-            # 检测并排序服务器延迟
+            # 检测并排序所有可用服务器的延迟
             print("🔄 正在检测服务器延迟...")
-            server_delays = []
-            for host in hosts:
-                delay = self._check_server_delay(host)
-                server_delays.append((host, delay))
+            server_delays = []                 # 存储服务器延迟信息的列表
+            # 遍历并实时显示每个服务器的延迟检测结果
+            for i, host in enumerate(hosts, 1):
+                delay = self._check_server_delay(host)  # 检测服务器延迟
+                server_delays.append((host, delay))     # 将延迟信息添加到列表
+                
+                # 实时显示检测结果
+                if delay == float('inf'):
+                    print(f"[{i}/{len(hosts)}] ❌ {host}: 连接失败")
+                else:
+                    print(f"[{i}/{len(hosts)}] ✅ {host}: {delay:.1f}ms")
 
             # 按延迟从小到大排序
             server_delays.sort(key=lambda x: x[1])
-            for i, (host, delay) in enumerate(server_delays, 1):
-                if delay == float('inf'):
-                    print(f"❌ {host}: 连接失败")
-                else:
-                    print(f"✅ {host}: {delay:.1f}ms ✓")
 
             # 首先尝试使用保存的cookie
             if self._load_cookies():
@@ -184,7 +183,7 @@ class XkSystem:
                 return True
             else:
                 exit_program("❌ 程序终止: 登录失败", -1)
-
+    # 获取公钥
     def _get_public(self):
         try:
             url = self.host + '/xtgl/login_getPublicKey.html'
@@ -193,7 +192,7 @@ class XkSystem:
             print('✅ 登录步骤一：获取公钥成功！')
         except Exception as e:
             print(f'❌ 登录步骤一：获取公钥失败: {str(e)}')
-
+    # 获取csrftoken
     def _get_csrftoken(self):
         try:
             url = self.host + '/xtgl/login_slogin.html'
@@ -203,7 +202,7 @@ class XkSystem:
             print('✅ 登录步骤二：获取csrf token成功！')
         except Exception as e:
             print(f'❌ 登录步骤二：获取csrf token失败: {str(e)}')
-
+    # 对公钥进行加密
     def _process_public(self, pwd):
         self.exponent = HB64().b642hex(self.pub['exponent'])
         self.modulus = HB64().b642hex(self.pub['modulus'])
@@ -211,7 +210,7 @@ class XkSystem:
         rsa.setPublic(self.modulus, self.exponent)
         cry_data = rsa.encrypt(pwd)
         return HB64().hex2b64(cry_data)
-
+    # post发送登录数据包
     def _post_data(self):
         ras_pw = self._process_public(self.pwd)
         url = self.host + '/xtgl/login_slogin.html'
@@ -222,13 +221,13 @@ class XkSystem:
             'mm': ras_pw,
             'mm': ras_pw,
         }
-        print('✅ 登录步骤三：正在提交登录请求')
+        print('✅ 登录步骤三：正在提交登录请求…')
         r = self.session.post(url, headers=self.headers, data=data)
-        print('✅ 登录步骤四：正在校验服务器响应')
+        print('✅ 登录步骤四：正在校验服务器响应…')
         pattern = r'用户名或密码不正确'
         if re.search(pattern, r.text) is not None:
             raise Exception('❌ 登录异常')
-
+    # 准备用户信息
     def _prepare_userinfo(self, ignore_classtype=False):
         form = {}
         url_zzxk = self.host + '/xsxk/zzxkyzb_cxZzxkYzbIndex.html?gnmkdm=N253512&layout=default&su=' + self.user
@@ -239,15 +238,12 @@ class XkSystem:
             return None
 
         htm = bs4.BeautifulSoup(r.text, "html.parser")  # 解析选课页面内容
-
         # 基本字段列表
         a = ['xqh_id', 'jg_id_1', 'zyh_id', 'zyfx_id', 'njdm_id', 'bh_id', 'xbm', 'xslbdm', 'ccdm', 'xsbj', 'xkxnm',
              'xkxqm']
-
-        # 添加特殊课程需要的字段
+        # 添加特殊课程需要的字段(英语，日语类)
         special_fields = ['mzm', 'xz']
         a.extend(special_fields)
-
         # 遍历所有字段并提取值
         for i in a:
             select_i = '#' + i
@@ -258,14 +254,11 @@ class XkSystem:
                 form[i] = ''
                 if i in special_fields:
                     print(f"⚠️ 未找到 {i} 参数，使用默认值")
-
         # 使用 jg_id_1 的值作为 jg_id
         form['jg_id'] = form.get('jg_id_1', '')
-
         # 检查是否只有一个选课类别
         nav_tabs = htm.select('.nav-tabs')
-
-        if not nav_tabs:  # 只有一个页签的情况
+        if not nav_tabs:  # 只有一个页签的情况，这种情况变量名不一样，需要单独处理
             course_types = [{
                 'kklxdm': htm.select('#firstKklxdm')[0]['value'],
                 'xkkz_id': htm.select('#firstXkkzId')[0]['value'],
@@ -280,9 +273,8 @@ class XkSystem:
                     'xkkz_id': match.group(2),
                     'name': match.group(3)
                 })
-
+        # 定义展示选课列表的url
         url = self.host + '/xsxk/zzxkyzb_cxZzxkYzbDisplay.html?gnmkdm=N253512&su=' + self.user
-
         if not ignore_classtype:
             print('📚 可选课程类别:')
             for idx, course_type in enumerate(course_types):
@@ -293,7 +285,7 @@ class XkSystem:
             self.xkkz_id = form['xkkz_id']
             form['kklxdm'] = selected_type['kklxdm']
             self.mode = selected_type['name']
-
+        # 定义请求选课列表的data
         data = {
             "xkkz_id": self.xkkz_id,
             "xszxzt": "1",
@@ -321,16 +313,12 @@ class XkSystem:
         form.setdefault('tykczgxdcs', htm.select('#tykczgxdcs')[0]['value'])
         form.setdefault('xkzgbj', htm.select('#xkzgbj')[0]['value'])
         form.setdefault('xklc', htm.select('#xklc')[0]['value'])
-
         self.form = form
-
         return form
-
-
+    # 获取选课列表
     def _get_TmpList(self, filter_params=None):
-
         form = self.form  # 使用类中保存的form
-        # 添加筛选参数
+        # 配合筛选参数
         if filter_params:
             if 'filter_list' in filter_params:
                 for idx, item in enumerate(filter_params['filter_list']):
@@ -344,18 +332,16 @@ class XkSystem:
             if 'kcgs_list' in filter_params:  # 添加课程归属筛选
                 for idx, item in enumerate(filter_params['kcgs_list']):
                     form[f'kcgs_list[{idx}]'] = item
-
-        # 添加分页参数
+        # 添加分页参数，尽可能展示所有课程
         form['kspage'] = '1'
         form['jspage'] = '2000'
         form['jxbzb'] = ''
-
+        # 请求选课列表
         course_url = self.host + '/xsxk/zzxkyzb_cxZzxkYzbPartDisplay.html?gnmkdm=N253512&su=' + self.user
         course_list = self.session.post(course_url, data=form)
         return json.loads(course_list.text)['tmpList']
-
+    # 获取课程详细信息
     def _get_course_detail(self, form, kch_id):
-        # 获取课程详细信息
         url = self.host + '/xsxk/zzxkyzbjk_cxJxbWithKchZzxkYzb.html?gnmkdm=N253512&su=' + self.user
         detail_form = {**form}  # 复制表单数据
         detail_form.update({
@@ -365,7 +351,7 @@ class XkSystem:
             'xkxqm': self.form.get('xkxqm', ''),
             'kklxdm': self.form.get('kklxdm', ''),
             'xkkz_id': self.form.get('xkkz_id', ''),
-            'xkxskcgskg': 1
+            'xkxskcgskg': 1 # 大学英语，日语类课程需要
         })
 
         try:
@@ -414,6 +400,7 @@ class XkSystem:
                 else:
                     print("❌ 输入格式错误，将不使用时间筛选")
             elif choice == '3':
+                # 不同学校不同，需要根据实际情况修改
                 print("\n📝 请选择课程归属：")
                 print("1. 人文社会科学")
                 print("2. 自然科学与技术")
@@ -428,7 +415,6 @@ class XkSystem:
                     '3': '3',  # 艺术与审美
                     '4': '7'   # 创新创业
                 }
-                
                 if kcgs_choice in kcgs_map:
                     filter_params['kcgs_list'] = [kcgs_map[kcgs_choice]]
                     kcgs_names = {
@@ -472,7 +458,6 @@ class XkSystem:
                 continue
 
         print('📚 可选课程列表:')
-
         # 创建PrettyTable对象
         table = PrettyTable()
         # 根据kklxdm决定显示课程性质还是课程归属
@@ -596,50 +581,40 @@ class XkSystem:
                         'has_multiple_classes': has_multiple_classes,  # 添加标记
                         'name': name  # 添加课程名称
                     })
-
                     index += 1
-
                 except KeyError:
                     continue
-
         # 打印表格
         print(table)
-        
         # 添加状态说明
         print("状态说明：✅ -> 已选 ❌ -> 已满 ⚠️ -> 即满(>80%) 🉑 -> 可选 ❓ -> 未知")
         print(f"\n✨ 找到了 {len(names)} 门课程，共 {index} 个教学班")
-
         return course_info, names
-
+    # 选课处理
     def run(self):
         url_xuanke = self.host + '/xsxk/zzxkyzbjk_xkBcZyZzxkYzb.html?gnmkdm=N253512&su=' + self.user
         self.current_selected = len(self.selectedCourses)
-
         # 检查是否开放选课并获取课程类别
         form = self._prepare_userinfo()
         if form is None:  # 如果未开放选课，返回上一级菜单
             return
-
         # 获取已选课程列表
         url_selected = self.host + '/xsxk/zzxkyzb_cxZzxkYzbChoosedDisplay.html?gnmkdm=N253512&su=' + self.user
         r = self.session.post(url=url_selected, data=form, headers=self.headers)
         selected_list = json.loads(r.text)
-        selected_kch_ids = [item['kch'] for item in selected_list]  # 记录已选课程的kch
-
+        selected_kch_ids = [item['kch'] for item in selected_list]  # 记录已选课程的kch，用于判断是否已选过
         # 获取可选课程列表
         tmp_list = self._get_TmpList()
         if not tmp_list:
             print("❌ 没有找到符合条件的课程")
             return
-
         # 创建PrettyTable对象并显示课程列表
         course_info, names = self._process_tmplist()
-
+        # 如果课程列表为空，则退出
         if not names:
             print("❌ 没有找到符合条件的课程")
             return
-
-        # 手动选课逻辑
+        # 选课逻辑处理
         while True:
             try:
                 num_courses = int(input("\n📝 请输入抢课数量(-1退出): "))
@@ -658,11 +633,10 @@ class XkSystem:
                 break
             except ValueError:
                 print("❌ 请输入有效的数字")
-
         # 存储用户选择的课程信息
         selected_courses = []
         print("📝 请输入要抢的课程序号(从0开始):")
-
+        # 遍历用户选择的课程
         for i in range(num_courses):
             while True:
                 try:
@@ -673,46 +647,38 @@ class XkSystem:
                     if course_index < 0 or course_index >= len(course_info):
                         print(f"❌ 序号必须在 0-{len(course_info) - 1} 之间")
                         continue
-                    
                     # 检查是否已经选择过这个教学班
                     if course_index in [x['index'] for x in selected_courses]:
                         print("❌ 这个教学班已经选择过了")
                         continue
-
                     # 获取当前选择的课程信息
                     course_data = course_info[course_index]
-                    
                     # 检查是否已经选过这门课
                     if course_data['kch_id'] in selected_kch_ids:
                         print(f"❌ 你已经选过 {course_data['name']} 这门课了")
                         continue
-
                     # 添加选课信息
                     selected_courses.append({
                         'index': course_index,
                         'info': course_data,
                         'name': course_data['name']
                     })
-                    
                     break
                 except ValueError:
                     print("❌ 请输入有效的数字")
-
         # 确认选课信息
         print("\n你选择的课程是:")
         for course in selected_courses:
             print(f"- {course['name']}")
-
+        # 确认选课
         choice = input("\n要开始选课吗? (Y/n): ")  # 默认是Y
         if choice and choice.lower() == 'n':  # 只有明确输入n才取消
             return
-
         # 让用户设置选课延迟
         while True:
             try:
-                delay_input = input("📝 请设置选课请求间隔(秒)，建议0.5-2秒 [默认1.0]: ").strip()
+                delay_input = input("📝 请设置选课请求间隔(秒)，建议1-2秒 [默认1.0]: ").strip()
                 self.request_delay = float(delay_input) if delay_input else 1.0
-
                 if self.request_delay < 0:
                     print("❌ 延迟时间不能为负数")
                     continue
@@ -723,15 +689,12 @@ class XkSystem:
                 break
             except ValueError:
                 print("❌ 请输入有效的数字")
-
         print("\n🔄 开始选课...")
         success_count = 0
-
-        # 单线程选课逻辑
+        # 单线程选课逻辑，多线程可能会导致选课频率过高，有风险
         for course in selected_courses:
             form = {**self.form, **course['info']}
             form['qz'] = '0'
-            
             while True:
                 try:
                     result = self._click_xuanke(url_xuanke, form, course['name'])
@@ -752,9 +715,8 @@ class XkSystem:
         if success_count > 0:
             print(f'✅ 新选课程: {", ".join(self.selectedCourses[self.current_selected:])}')
         return
-
+    # 单次选课尝试
     def _click_xuanke(self, url_xuanke, form, name):
-        """单次选课尝试，返回是否成功"""
         print(f'🔄 正在尝试选择 {name} ...')
         try:
             # 如果是多个教学班的情况，直接使用已有的do_jxb_id
@@ -793,14 +755,12 @@ class XkSystem:
         except Exception as e:
             print(f'❌ 服务器响应异常 - {name}: {str(e)}')
             return False
-
+    # 查看已选课程
     def display_selected(self):
-        """查看已选课程"""
         # 检查是否开放选课
         form = self._prepare_userinfo(ignore_classtype=True)
         if form is None:  # 如果未开放选课，返回上一级菜单
             return
-
         url = self.host + '/xsxk/zzxkyzb_cxZzxkYzbChoosedDisplay.html?gnmkdm=N253512&su=' + self.user
         r = self.session.post(url=url, data=form, headers=self.headers)
         selected_list = json.loads(r.text)
@@ -808,16 +768,13 @@ class XkSystem:
         if not selected_list:
             print('\n❌ 当前没有已选课程')
             return
-
         # 创建PrettyTable对象
         table = PrettyTable()
         table.field_names = ["序号", "课程名称", "课程号", "教学班ID", "教师", "上课时间", "上课地点"]
-
         # 设置表格样式
         table.align = "l"  # 左对齐
         table.max_width = 50  # 限制每列最大宽度
         table.hrules = 1  # 显示横线
-
         # 添加数据到表格
         for idx, item in enumerate(selected_list):
             # 处理教师信息 - 只保留教师姓名
@@ -829,7 +786,6 @@ class XkSystem:
                     teacher_name = parts[1]  # 取中间部分作为教师姓名
                 else:
                     teacher_name = teacher_info  # 如果格式不匹配，使用原始字符串
-
             row = [
                 idx,  # 序号
                 item['jxbmc'],  # 课程名称
@@ -844,31 +800,25 @@ class XkSystem:
         print('\n📚 已选课程列表:')
         print(table)
         print(f'📚 已选课程总数: {len(selected_list)} 门')
-
+    # 退课  
     def drop_course(self):
-        """退课功能"""
         # 检查是否开放选课
         form = self._prepare_userinfo(ignore_classtype=True)
         if form is None:  # 如果未开放选课，返回上一级菜单
             return
-
         url = self.host + '/xsxk/zzxkyzb_cxZzxkYzbChoosedDisplay.html?gnmkdm=N253512&su=' + self.user
         r = self.session.post(url=url, data=form, headers=self.headers)
         selected_list = json.loads(r.text)
-
         if not selected_list:
             print('\n❌ 当前没有已选课程')
             return
-
         # 创建PrettyTable对象
         table = PrettyTable()
         table.field_names = ["序号", "课程名称", "教师", "上课时间"]
-
         # 设置表格样式
         table.align = "l"
         table.max_width = 50
         table.hrules = 1
-
         # 添加数据到表格（简化显示）
         for idx, item in enumerate(selected_list):
             teacher_info = item['jsxx']
@@ -879,7 +829,6 @@ class XkSystem:
                     teacher_name = parts[1]
                 else:
                     teacher_name = teacher_info
-
             row = [
                 idx,
                 item['jxbmc'],
@@ -890,7 +839,6 @@ class XkSystem:
 
         print('\n📚 可退课程列表:')
         print(table)
-
         while True:
             try:
                 idx = int(input('📝 请输入要退课的序号 (-1取消): '))
@@ -909,7 +857,6 @@ class XkSystem:
                     print(f'❌ 序号必须在 0-{len(selected_list) - 1} 之间')
             except ValueError:
                 print('❌ 请输入有效的数字')
-
     def _tuike(self, jxb_id, kch_id):
         tuike_url = self.host + '/xsxk/tjxkyzb_tuikBcTjxkYzb.html?gnmkdm=N253511&su=' + self.user
         form = {
@@ -923,10 +870,8 @@ class XkSystem:
         # print(r.text)
         if r.text == '"1"':
             print('✅ 退课成功!')
-
-
+# 打印主菜单
 def print_menu():
-    """打印主菜单"""
     print("\n" + "=" * 42)
     print("📚 选课系统菜单:")
     print("1. 普通选课(支持筛选)")
@@ -935,15 +880,14 @@ def print_menu():
     print("0. 退出")
     print("=" * 42)
 
-
+# 退出程序
 def exit_program(message=None, exit_code=0):
-    """友好的程序退出函数"""
     if message:
         print(message)
     os.system('pause')  # 暂停让用户看到信息
     sys.exit(exit_code)
 
-
+# 主函数
 if __name__ == '__main__':
     os.system("chcp 65001 && cls")  # 设置控制台为UTF-8编码并清屏
     print("=" * 42)
@@ -960,31 +904,25 @@ Author：null
 GitHub：https://github.com/c0yt
 ⚠️ 仅供个人学习使用，禁止用于个人盈利！''')
     print("=" * 42)
-
     while True:
         choice = input("\n📝 请选择服务器连接方式 (0-2): ").strip()
-        
         if choice == "0":
             exit_program('👋 感谢使用，再见！')
         elif choice in ["1", "2"]:
             break
         else:
             print("❌ 无效的选择，请重试")
-
     print('\n🔑 请输入账号密码:')
     userName = input('👤 学号: ').strip()
     passWord = input('🔒 密码: ').strip()
     if not userName or not passWord:
         exit_program("❌ 账号密码不能为空!", 1)
-    
     test = XkSystem(userName, passWord)
-
     # 尝试登录
     if not test.login(choice):
         exit_program("❌ 登录失败，程序退出", 1)
 
     print("\n🔑 正在进入选课系统，请稍后...")
-
     while True:
         print_menu()
         choice = input("\n📝 请选择功能: ")
@@ -999,7 +937,6 @@ GitHub：https://github.com/c0yt
             exit_program('👋 感谢使用，再见！')
         else:
             print("❌ 无效的选择，请重试")
-
         # 统一在循环末尾处理等待按键
         if choice != "0":  # 退出时不需要等待
             input("\n按回车键继续...")
