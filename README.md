@@ -156,3 +156,4 @@
 
 ​	本项目遵循[GPL-3.0 license](https://github.com/c0yt/xkTool/blob/main/LICENSE)协议
 
+[![Star History Chart](https://api.star-history.com/svg?repos=c0yt/xkTool&type=Date)](https://www.star-history.com/#c0yt/xkTool&Date)
