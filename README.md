@@ -151,3 +151,8 @@
 - [psychocosine](https://github.com/psychocosine)大佬的开源项目[GXU_Spider](https://github.com/psychocosine/GXU_Spider)
 
 - [shaxiu](https://github.com/shaxiu)大佬的开源项目[ZF_API](https://github.com/shaxiu/ZF_API)
+
+## 遵循协议
+
+​	本项目遵循[GPL-3.0 license](https://github.com/c0yt/xkTool/blob/main/LICENSE)协议
+
