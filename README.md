@@ -2,7 +2,13 @@
 
 ![Version](https://img.shields.io/badge/Version-1.0.4-blue.svg) ![Language](https://img.shields.io/badge/Language-Python3-red.svg) 
 
-> 📌 **声明**：选课脚本Demo，仅支持自用，禁止用于商业用途或其他非法用途，使用本程序导致的任何问题由使用者自行承担。
+> 📌 **声明**：
+>
+> ​	选课脚本Demo，仅支持**自用**，**禁止**用于**商业用途**或其他**非法用途**，使用本程序导致的任何问题由使用者**自行承担**。
+>
+> 碎碎念：
+>
+> ​	"欲买桂花同载酒，终不似，少年游"，大三时开发的脚本，目前也仅测试过一次，真的是和大一大二时拥有的感觉是不一样的，希望大家都能在最先想做的时候去完成一件事情，随缘维护更新，关于脚本使用有问题，请在issue留下联系邮箱和问题。
 
 ---------------------------------------------------------------------------------------------------------------------------------------
 
@@ -145,4 +151,3 @@
 - [psychocosine](https://github.com/psychocosine)大佬的开源项目[GXU_Spider](https://github.com/psychocosine/GXU_Spider)
 
 - [shaxiu](https://github.com/shaxiu)大佬的开源项目[ZF_API](https://github.com/shaxiu/ZF_API)
-
