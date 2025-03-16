@@ -1,0 +1,6 @@
+requests>=2.25.1
+prettytable>=2.0.0
+hex2b64>=1.0.0
+bs4>=0.0.1
+tqdm>=4.50.0
+pickle-mixin>=1.0.2
