@@ -94,7 +94,7 @@
     ```
     xqh_id:1
     jg_id:11
-    zyfx_id:wfx
+    zyfx_id:xxx
     njdm_id:2024
     bh_id:24xxxxx
     xbm:1
@@ -119,8 +119,8 @@
     xkxqm:12
     xkxskcgskg:1	      // 定值
     kklxdm:10            // 代表通识选修课     
-    kch_id:13301302	     // 课程号id，同一门课的kch_id是一致的
-    xkkz_id:2EB303633996601BE063CCA226D28837  // 选课类别标识符
+    kch_id:1xxxxxxx	     // 课程号id，同一门课的kch_id是一致的
+    xkkz_id:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  // 选课类别标识符
     ```
   - 筛选参数
 
