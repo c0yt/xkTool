@@ -214,6 +214,11 @@ class XkSystem:
     def _post_data(self):
         ras_pw = self._process_public(self.pwd)
         url = self.host + '/xtgl/login_slogin.html'
+        # 检查页面源码是否包含验证码输入框
+        login_page = self.session.get(url, headers=self.headers)
+        soup = bs4.BeautifulSoup(login_page.text, "html.parser")
+        # 使用CSS选择器检查验证码输入框是否存在
+        has_captcha = bool(soup.select('input#yzm'))
         data = {
             'csrftoken': self.csrftoken,
             'language': "zh_CN",
@@ -221,12 +226,135 @@ class XkSystem:
             'mm': ras_pw,
             'mm': ras_pw,
         }
-        print('✅ 登录步骤三：正在提交登录请求…')
-        r = self.session.post(url, headers=self.headers, data=data)
-        print('✅ 登录步骤四：正在校验服务器响应…')
-        pattern = r'用户名或密码不正确'
-        if re.search(pattern, r.text) is not None:
-            raise Exception('❌ 登录异常')
+        # 如果需要验证码，则下载并识别
+        if has_captcha:
+            print('⚠️ 检测到需要验证码，正在识别...')
+            # 最多尝试3次验证码识别
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
+                captcha_result = self._recognize_captcha()
+                if not captcha_result:
+                    if attempt < max_attempts:
+                        print(f'❌ 验证码识别失败，第{attempt}次尝试，正在重试...')
+                        time.sleep(1)  # 等待1秒后重试
+                        continue
+                    else:
+                        print('❌ 验证码识别失败，登录失败')
+                        raise Exception('验证码识别失败')
+
+                # 将验证码添加到登录数据中
+                data['yzm'] = captcha_result
+                # 尝试登录
+                print('✅ 登录步骤三：正在提交登录请求…')
+                r = self.session.post(url, headers=self.headers, data=data)
+                print('✅ 登录步骤四：正在校验服务器响应…')
+                # 检查是否因为验证码错误导致登录失败
+                if '验证码错误' in r.text:
+                    if attempt < max_attempts:
+                        print(f'❌ 验证码识别错误，第{attempt}次尝试，正在重试...')
+                        time.sleep(1)  # 等待1秒后重试
+                        continue
+                    else:
+                        print('❌ 验证码识别错误，登录失败')
+                        raise Exception('验证码错误')
+                # 检查是否因为用户名或密码错误导致登录失败
+                pattern = r'用户名或密码不正确'
+                if re.search(pattern, r.text) is not None:
+                    raise Exception('❌ 登录异常：用户名或密码不正确')
+                return
+        else:
+            # 不需要验证码的情况
+            print('✅ 登录步骤三：正在提交登录请求…')
+            r = self.session.post(url, headers=self.headers, data=data)
+            print('✅ 登录步骤四：正在校验服务器响应…')
+            pattern = r'用户名或密码不正确'
+            if re.search(pattern, r.text) is not None:
+                raise Exception('❌ 登录异常：用户名或密码不正确')
+    # 识别验证码的辅助函数
+    def _recognize_captcha(self):
+        # 导入所需模块
+        import os
+        import sys
+        import numpy as np
+        import torch
+        from torch.autograd import Variable
+        from PIL import Image
+        import torchvision.transforms as transforms
+        
+        # 使用当前目录下的captcha文件夹
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        captcha_dir = os.path.join(current_dir, 'captcha')
+        
+        # 添加captcha目录到Python路径
+        if captcha_dir not in sys.path:
+            sys.path.insert(0, captcha_dir)
+        # 尝试导入验证码识别所需模块
+        try:
+            import setting
+            from model import CNN
+        except ImportError as e:
+            print(f'❌ 导入验证码识别模块失败: {str(e)}')
+            return None
+        captcha_url = self.host + '/kaptcha'
+        # 修改验证码图片保存路径
+        captcha_path = os.path.join(captcha_dir, 'temp_captcha.jpg')
+        # 确保目录存在
+        os.makedirs(os.path.dirname(captcha_path), exist_ok=True)
+        # 下载验证码
+        try:
+            # 添加时间戳参数避免缓存
+            if '?' in captcha_url:
+                captcha_url = f"{captcha_url}&t={int(time.time() * 1000)}"
+            else:
+                captcha_url = f"{captcha_url}?t={int(time.time() * 1000)}"
+            captcha_response = self.session.get(captcha_url, stream=True)
+            if captcha_response.status_code == 200:
+                with open(captcha_path, 'wb') as f:
+                    f.write(captcha_response.content)
+            else:
+                print(f'❌ 下载验证码失败，状态码: {captcha_response.status_code}')
+                return None
+        except Exception as e:
+            print(f'❌ 下载验证码出错: {str(e)}')
+            return None
+        # 识别验证码
+        try:
+            # 延迟导入，避免循环导入问题
+            if not self.captcha_model:
+                # 检查模型文件是否存在
+                model_path = os.path.join(captcha_dir, 'model.pkl')  # 修改模型文件路径
+                if not os.path.exists(model_path):
+                    print('❌ 未找到模型文件')
+                    return None
+                self.captcha_model = CNN()
+                self.captcha_model.eval()
+                self.captcha_model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+            # 图像预处理
+            transform = transforms.Compose([
+                transforms.Grayscale(),
+                transforms.Resize((setting.IMAGE_HEIGHT, setting.IMAGE_WIDTH)),  # 调整图像尺寸
+                transforms.ToTensor(),
+            ])
+            # 加载图像
+            image = Image.open(captcha_path)
+            image = transform(image)
+            image = image.unsqueeze(0)  # 添加批次维度
+            # 预测
+            vimage = Variable(image)
+            predict_label = self.captcha_model(vimage)
+            # 解码预测结果
+            c0 = setting.ALL_CHAR_SET[np.argmax(predict_label[0, 0:setting.ALL_CHAR_SET_LEN].data.numpy())]
+            c1 = setting.ALL_CHAR_SET[np.argmax(predict_label[0, setting.ALL_CHAR_SET_LEN:2 * setting.ALL_CHAR_SET_LEN].data.numpy())]
+            c2 = setting.ALL_CHAR_SET[np.argmax(predict_label[0, 2 * setting.ALL_CHAR_SET_LEN:3 * setting.ALL_CHAR_SET_LEN].data.numpy())]
+            c3 = setting.ALL_CHAR_SET[np.argmax(predict_label[0, 3 * setting.ALL_CHAR_SET_LEN:4 * setting.ALL_CHAR_SET_LEN].data.numpy())]
+            c4 = setting.ALL_CHAR_SET[np.argmax(predict_label[0, 4 * setting.ALL_CHAR_SET_LEN:5 * setting.ALL_CHAR_SET_LEN].data.numpy())]
+            c5 = setting.ALL_CHAR_SET[np.argmax(predict_label[0, 5 * setting.ALL_CHAR_SET_LEN:6 * setting.ALL_CHAR_SET_LEN].data.numpy())]
+            captcha_result = '%s%s%s%s%s%s' % (c0, c1, c2, c3, c4, c5)
+            print(f'✅ 验证码识别结果: {captcha_result}')
+            return captcha_result
+        except Exception as e:
+            print(f'❌ 验证码识别失败: {str(e)}')
+            return None
     # 准备用户信息
     def _prepare_userinfo(self, ignore_classtype=False):
         form = {}
