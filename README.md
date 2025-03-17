@@ -37,8 +37,8 @@
 
   ```python
   http://xxx.xx.xx.xx
-  http://jwxt.example1.edu.cn
-  http://jwxt.example2.edu.cn
+  http://example1.edu.cn
+  http://example2.edu.cn
   ```
 
 - 双击运行程序
