@@ -52,8 +52,9 @@ class XkSystem:
     # 检查登录状态
     def _check_login_status(self):
         try:
-            r = self.session.get(f"{self.host}/xsxk/zzxkyzb_cxZzxkYzbIndex.html", headers=self.headers)
-            return "用户名" not in r.text
+            userinfo = self.get_userinfo()
+            print(f'ℹ️ 当前用户信息：{userinfo}')
+            return True
         except:
             return False
 
@@ -113,8 +114,9 @@ class XkSystem:
                 self._get_csrftoken()          # 获取CSRF令牌
                 self._post_data()              # 提交登录数据
                 self._save_cookies()           # 保存登录成功的Cookie
-                print('✅ 登录成功!')
-                return True
+                if self._check_login_status():
+                    print(f"✅ 登录成功!")
+                    return True
             except requests.exceptions.RequestException as e:
                 print(f'❌ 登录失败: 服务器连接超时')
                 print('⚠️ 建议尝试自动选择服务器模式')
@@ -178,7 +180,7 @@ class XkSystem:
                     print('❌ 登录失败: 账号或密码错误')
                     break
 
-            if flag == 1:  # 登录成功
+            if flag == 1 and self._check_login_status():  # 登录成功
                 print('✅ 登录成功!')
                 return True
             else:
@@ -995,6 +997,18 @@ class XkSystem:
         # print(r.text)
         if r.text == '"1"':
             print('✅ 退课成功!')
+    def get_userinfo(self):
+        userinfo_url = self.host + '/xsxxxggl/xsxxwh_cxCkDgxsxx.html?gnmkdm=N100801'
+        r = self.session.get(url=userinfo_url, headers=self.headers)
+        result = r.json()
+        # 从result里获取用户信息
+        userinfo = {
+            'id': result.get('xh', ''),      # 学号
+            'name': result.get('xm', ''),      # 姓名  
+            'class': result.get('bh_id', '') # 班级ID
+        }
+        return userinfo
+
 # 打印主菜单
 def print_menu():
     print("\n" + "=" * 42)
