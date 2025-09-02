@@ -1029,7 +1029,7 @@ def exit_program(message=None, exit_code=0):
 # 主函数
 if __name__ == '__main__':
     os.system("chcp 65001 && cls")  # 设置控制台为UTF-8编码并清屏
-    print('''__  __ _     _____                _ 
+    print(r'''__  __ _     _____                _ 
 \ \/ /| | __/__   \  ___    ___  | |
  \  / | |/ /  / /\/ / _ \  / _ \ | |
  /  \ |   <  / /   | (_) || (_) || |
